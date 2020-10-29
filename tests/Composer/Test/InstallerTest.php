@@ -145,11 +145,11 @@ class InstallerTest extends TestCase
 
         $a = $this->getPackage('A', '1.0.0', 'Composer\Package\RootPackage');
         $a->setRequires(array(
-            'b' => new Link('A', 'B', $v = $this->getVersionConstraint('=', '1.0.0'), 'requires', $v->getPrettyString()),
+            'b' => new Link('A', 'B', $v = $this->getVersionConstraint('=', '1.0.0'), Link::TYPE_REQUIRE, $v->getPrettyString()),
         ));
         $b = $this->getPackage('B', '1.0.0');
         $b->setRequires(array(
-            'a' => new Link('B', 'A', $v = $this->getVersionConstraint('=', '1.0.0'), 'requires', $v->getPrettyString()),
+            'a' => new Link('B', 'A', $v = $this->getVersionConstraint('=', '1.0.0'), Link::TYPE_REQUIRE, $v->getPrettyString()),
         ));
 
         $cases[] = array(
@@ -165,11 +165,11 @@ class InstallerTest extends TestCase
 
         $a = $this->getPackage('A', '1.0.0', 'Composer\Package\RootPackage');
         $a->setRequires(array(
-            'b' => new Link('A', 'B', $v = $this->getVersionConstraint('=', '1.0.0'), 'requires', $v->getPrettyString()),
+            'b' => new Link('A', 'B', $v = $this->getVersionConstraint('=', '1.0.0'), Link::TYPE_REQUIRE, $v->getPrettyString()),
         ));
         $b = $this->getPackage('B', '1.0.0');
         $b->setRequires(array(
-            'a' => new Link('B', 'A', $v = $this->getVersionConstraint('=', '1.0.0'), 'requires', $v->getPrettyString()),
+            'a' => new Link('B', 'A', $v = $this->getVersionConstraint('=', '1.0.0'), Link::TYPE_REQUIRE, $v->getPrettyString()),
         ));
 
         $cases[] = array(
@@ -182,6 +182,15 @@ class InstallerTest extends TestCase
 
         // TODO why are there not more cases with uninstall/update?
         return $cases;
+    }
+
+    /**
+     * @group slow
+     * @dataProvider getSlowIntegrationTests
+     */
+    public function testSlowIntegration($file, $message, $condition, $composerConfig, $lock, $installed, $run, $expectLock, $expectInstalled, $expectOutput, $expect, $expectResult)
+    {
+        return $this->testIntegration($file, $message, $condition, $composerConfig, $lock, $installed, $run, $expectLock, $expectInstalled, $expectOutput, $expect, $expectResult);
     }
 
     /**
@@ -347,10 +356,7 @@ class InstallerTest extends TestCase
         $output = str_replace("\r", '', $io->getOutput());
         $this->assertEquals($expectResult, $result, $output . stream_get_contents($appOutput));
         if ($expectLock && isset($actualLock)) {
-            unset($actualLock['hash']);
-            unset($actualLock['content-hash']);
-            unset($actualLock['_readme']);
-            unset($actualLock['plugin-api-version']);
+            unset($actualLock['hash'], $actualLock['content-hash'], $actualLock['_readme'], $actualLock['plugin-api-version']);
             $this->assertEquals($expectLock, $actualLock);
         }
 
@@ -382,9 +388,19 @@ class InstallerTest extends TestCase
         }
     }
 
+    public function getSlowIntegrationTests()
+    {
+        return $this->loadIntegrationTests('installer-slow/');
+    }
+
     public function getIntegrationTests()
     {
-        $fixturesDir = realpath(__DIR__.'/Fixtures/installer/');
+        return $this->loadIntegrationTests('installer/');
+    }
+
+    public function loadIntegrationTests($path)
+    {
+        $fixturesDir = realpath(__DIR__.'/Fixtures/'.$path);
         $tests = array();
 
         foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($fixturesDir), \RecursiveIteratorIterator::LEAVES_ONLY) as $file) {

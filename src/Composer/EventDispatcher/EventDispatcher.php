@@ -144,6 +144,14 @@ class EventDispatcher
      */
     protected function doDispatch(Event $event)
     {
+        if (getenv('COMPOSER_DEBUG_EVENTS')) {
+            $details = null;
+            if ($event instanceof PackageEvent) {
+                $details = (string) $event->getOperation();
+            }
+            $this->io->writeError('Dispatching <info>'.$event->getName().'</info>'.($details ? ' ('.$details.')' : '').' event');
+        }
+
         $listeners = $this->getListeners($event);
 
         $this->pushEvent($event);
@@ -313,23 +321,6 @@ class EventDispatcher
         }
 
         return $className::$methodName($event);
-    }
-
-    private function serializeCallback($cb)
-    {
-        if (is_array($cb) && count($cb) === 2) {
-            if (is_object($cb[0])) {
-                $cb[0] = get_class($cb[0]);
-            }
-            if (is_string($cb[0]) && is_string($cb[1])) {
-                $cb = implode('::', $cb);
-            }
-        }
-        if (is_string($cb)) {
-            return $cb;
-        }
-
-        return var_export($cb, true);
     }
 
     /**

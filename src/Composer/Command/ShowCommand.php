@@ -17,6 +17,8 @@ use Composer\DependencyResolver\DefaultPolicy;
 use Composer\Json\JsonFile;
 use Composer\Package\BasePackage;
 use Composer\Package\CompletePackageInterface;
+use Composer\Package\Link;
+use Composer\Package\AliasPackage;
 use Composer\Package\PackageInterface;
 use Composer\Package\Version\VersionParser;
 use Composer\Package\Version\VersionSelector;
@@ -194,8 +196,7 @@ EOT
             }
             $locker = $composer->getLocker();
             $lockedRepo = $locker->getLockedRepository(true);
-            $installedRepo = new InstalledRepository(array($lockedRepo));
-            $repos = new CompositeRepository(array_merge(array($installedRepo), $composer->getRepositoryManager()->getRepositories()));
+            $repos = $installedRepo = new InstalledRepository(array($lockedRepo));
         } else {
             // --installed / default case
             if (!$composer) {
@@ -347,7 +348,7 @@ EOT
         foreach ($repos as $repo) {
             if ($repo === $platformRepo) {
                 $type = 'platform';
-            } elseif($lockedRepo !== null && $repo === $lockedRepo) {
+            } elseif ($lockedRepo !== null && $repo === $lockedRepo) {
                 $type = 'locked';
             } elseif ($repo === $installedRepo || in_array($repo, $installedRepo->getRepositories(), true)) {
                 $type = 'installed';
@@ -364,6 +365,9 @@ EOT
                         || !is_object($packages[$type][$package->getName()])
                         || version_compare($packages[$type][$package->getName()]->getVersion(), $package->getVersion(), '<')
                     ) {
+                        while ($package instanceof AliasPackage) {
+                            $package = $package->getAliasOf();
+                        }
                         if (!$packageFilterRegex || preg_match($packageFilterRegex, $package->getName())) {
                             if (!$packageListFilter || in_array($package->getName(), $packageListFilter, true)) {
                                 $packages[$type][$package->getName()] = $package;
@@ -580,7 +584,11 @@ EOT
 
         $matchedPackage = null;
         $versions = array();
-        $pool = $repositorySet->createPoolForPackage($name);
+        if (PlatformRepository::isPlatformPackage($name)) {
+            $pool = $repositorySet->createPoolWithAllPackages();
+        } else {
+            $pool = $repositorySet->createPoolForPackage($name);
+        }
         $matches = $pool->whatProvides($name, $constraint);
         foreach ($matches as $index => $package) {
             // select an exact match if it is in the installed repo and no specific version was required
@@ -613,8 +621,8 @@ EOT
         $io = $this->getIO();
 
         $this->printMeta($package, $versions, $installedRepo, $latestPackage ?: null);
-        $this->printLinks($package, 'requires');
-        $this->printLinks($package, 'devRequires', 'requires (dev)');
+        $this->printLinks($package, Link::TYPE_REQUIRE);
+        $this->printLinks($package, Link::TYPE_DEV_REQUIRE, 'requires (dev)');
 
         if ($package->getSuggests()) {
             $io->write("\n<info>suggests</info>");
@@ -623,9 +631,9 @@ EOT
             }
         }
 
-        $this->printLinks($package, 'provides');
-        $this->printLinks($package, 'conflicts');
-        $this->printLinks($package, 'replaces');
+        $this->printLinks($package, Link::TYPE_PROVIDE);
+        $this->printLinks($package, Link::TYPE_CONFLICT);
+        $this->printLinks($package, Link::TYPE_REPLACE);
     }
 
     /**
@@ -911,7 +919,7 @@ EOT
 
     private function appendLinks($json, CompletePackageInterface $package)
     {
-        foreach (array('requires', 'devRequires', 'provides', 'conflicts', 'replaces') as $linkType) {
+        foreach (Link::$TYPES as $linkType) {
             $json = $this->appendLink($json, $package, $linkType);
         }
 
@@ -1115,7 +1123,7 @@ EOT
         array $packagesInTree
     ) {
         $children = array();
-        list($package, $versions) = $this->getPackage(
+        list($package) = $this->getPackage(
             $installedRepo,
             $remoteRepos,
             $name,
@@ -1219,7 +1227,12 @@ EOT
             $targetVersion = '^' . $package->getVersion();
         }
 
-        return $versionSelector->findBestCandidate($name, $targetVersion, $bestStability);
+        $candidate = $versionSelector->findBestCandidate($name, $targetVersion, $bestStability);
+        while ($candidate instanceof AliasPackage) {
+            $candidate = $candidate->getAliasOf();
+        }
+
+        return $candidate;
     }
 
     private function getRepositorySet(Composer $composer)

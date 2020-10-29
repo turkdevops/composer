@@ -13,12 +13,15 @@ a logging library. If you have not yet installed Composer, refer to the
 
 To start using Composer in your project, all you need is a `composer.json`
 file. This file describes the dependencies of your project and may contain
-other metadata as well.
+other metadata as well. It typically should go in the top-most directory of
+your project/VCS repository. You can technically run Composer anywhere but
+if you want to publish a package to Packagist.org, it will have to be able
+to find the file at the top of your VCS repository.
 
 ### The `require` key
 
 The first (and often only) thing you specify in `composer.json` is the
-[`require`](04-schema.md#require) key. You are simply telling Composer which
+[`require`](04-schema.md#require) key. You are telling Composer which
 packages your project depends on.
 
 ```json
@@ -98,7 +101,7 @@ When you run this command, one of two things may happen:
 ### Installing without `composer.lock`
 
 If you have never run the command before and there is also no `composer.lock` file present,
-Composer simply resolves all dependencies listed in your `composer.json` file and downloads
+Composer resolves all dependencies listed in your `composer.json` file and downloads
 the latest version of their files into the `vendor` directory in your project. (The `vendor`
 directory is the conventional location for all third-party code in a project). In our
 example from above, you would end up with the Monolog source files in
@@ -211,7 +214,7 @@ available platform packages.
 ## Autoloading
 
 For libraries that specify autoload information, Composer generates a
-`vendor/autoload.php` file. You can simply include this file and start
+`vendor/autoload.php` file. You can include this file and start
 using the classes that those libraries provide without any extra work:
 
 ```php

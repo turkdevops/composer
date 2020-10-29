@@ -5,7 +5,8 @@ This chapter will describe the `config` section of the `composer.json`
 
 ## process-timeout
 
-Defaults to `300`. The duration processes like git clones can run before
+The timeout in seconds for process executions, defaults to 300 (5mins).
+The duration processes like git clones can run before
 Composer assumes they died out. You may need to make this higher if you have a
 slow connection or huge vendors.
 
@@ -71,9 +72,9 @@ URL.
 A list of domain names and oauth keys. For example using `{"github.com":
 "oauthtoken"}` as the value of this option will use `oauthtoken` to access
 private repositories on github and to circumvent the low IP-based rate limiting
-of their API. [Read
-more](articles/troubleshooting.md#api-rate-limit-and-oauth-tokens) on how to get
-an OAuth token for GitHub.
+of their API. Composer may prompt for credentials when needed, but these can also be
+manually set. Read more on how to get an OAuth token for GitHub and cli syntax
+[here](articles/authentication-for-private-packages.md#github-oauth).
 
 ## gitlab-oauth
 
@@ -82,6 +83,7 @@ A list of domain names and oauth keys. For example using `{"gitlab.com":
 private repositories on gitlab. Please note: If the package is not hosted at
 gitlab.com the domain names must be also specified with the
 [`gitlab-domains`](06-config.md#gitlab-domains) option.
+Further info can also be found [here](articles/authentication-for-private-packages.md#gitlab-oauth)
 
 ## gitlab-token
 
@@ -95,13 +97,15 @@ Please note: If the package is not hosted at
 gitlab.com the domain names must be also specified with the
 [`gitlab-domains`](06-config.md#gitlab-domains) option. The token must have
 `api` or `read_api` scope.
+Further info can also be found [here](articles/authentication-for-private-packages.md#gitlab-token)
 
 ## disable-tls
 
 Defaults to `false`. If set to true all HTTPS URLs will be tried with HTTP
 instead and no network level encryption is performed. Enabling this is a
 security risk and is NOT recommended. The better way is to enable the
-php_openssl extension in php.ini.
+php_openssl extension in php.ini. Enabling this will implicitly disable the
+`secure-http` option.
 
 ## secure-http
 
@@ -113,8 +117,8 @@ get a free SSL certificate is generally a better alternative.
 ## bitbucket-oauth
 
 A list of domain names and consumers. For example using `{"bitbucket.org":
-{"consumer-key": "myKey", "consumer-secret": "mySecret"}}`. [Read](https://confluence.atlassian.com/bitbucket/oauth-on-bitbucket-cloud-238027431.html)
-how to set up a consumer on Bitbucket.
+{"consumer-key": "myKey", "consumer-secret": "mySecret"}}`.
+Read more [here](articles/authentication-for-private-packages.md#bitbucket-oauth).
 
 ## cafile
 
@@ -133,11 +137,7 @@ capath must be a correctly hashed certificate directory.
 A list of domain names and username/passwords to authenticate against them. For
 example using `{"example.org": {"username": "alice", "password": "foo"}}` as the
 value of this option will let Composer authenticate against example.org.
-
-> **Note:** Authentication-related config options like `http-basic`, `bearer` and
-> `github-oauth` can also be specified inside a `auth.json` file that goes
-> besides your `composer.json`. That way you can gitignore it and every
-> developer can place their own credentials in there.
+More info can be found [here](articles/authentication-for-private-packages.md#http-basic).
 
 ## bearer
 
@@ -287,14 +287,12 @@ scripts if you tend to have modified vendors.
 
 ## archive-format
 
-Defaults to `tar`. Composer allows you to add a default archive format when the
-workflow needs to create a dedicated archiving format.
+Defaults to `tar`. Overrides the default format used by the archive command.
 
 ## archive-dir
 
-Defaults to `.`. Composer allows you to add a default archive directory when the
-workflow needs to create a dedicated archiving format. Or for easier development
-between modules.
+Defaults to `.`. Default destination for archives created by the archive
+command.
 
 Example:
 

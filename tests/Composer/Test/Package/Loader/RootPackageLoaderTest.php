@@ -15,6 +15,7 @@ namespace Composer\Test\Package\Loader;
 use Composer\Config;
 use Composer\Package\Loader\RootPackageLoader;
 use Composer\Package\BasePackage;
+use Composer\Package\RootPackage;
 use Composer\Package\Version\VersionGuesser;
 use Composer\Semver\VersionParser;
 use Composer\Test\TestCase;
@@ -90,7 +91,7 @@ class RootPackageLoaderTest extends TestCase
         $package = $loader->load(array());
 
         $this->assertEquals("1.0.0.0", $package->getVersion());
-        $this->assertEquals("No version set (parsed as 1.0.0)", $package->getPrettyVersion());
+        $this->assertEquals(RootPackage::DEFAULT_PRETTY_VERSION, $package->getPrettyVersion());
     }
 
     public function testPrettyVersionForRootPackageInVersionBranch()
@@ -137,7 +138,7 @@ class RootPackageLoaderTest extends TestCase
             ->expects($this->at(0))
             ->method('execute')
             ->willReturnCallback(function ($command, &$output) use ($self) {
-                $self->assertEquals('git branch --no-color --no-abbrev -v', $command);
+                $self->assertEquals('git branch -a --no-color --no-abbrev -v', $command);
                 $output = "* latest-production 38137d2f6c70e775e137b2d8a7a7d3eaebf7c7e5 Commit message\n  master 4f6ed96b0bc363d2aa4404c3412de1c011f67c66 Commit message\n";
 
                 return 0;
@@ -187,7 +188,7 @@ class RootPackageLoaderTest extends TestCase
             ->expects($this->at(0))
             ->method('execute')
             ->willReturnCallback(function ($command, &$output) use ($self) {
-                $self->assertEquals('git branch --no-color --no-abbrev -v', $command);
+                $self->assertEquals('git branch -a --no-color --no-abbrev -v', $command);
                 $output = "* latest-production 38137d2f6c70e775e137b2d8a7a7d3eaebf7c7e5 Commit message\n  master 4f6ed96b0bc363d2aa4404c3412de1c011f67c66 Commit message\n";
 
                 return 0;
@@ -200,5 +201,29 @@ class RootPackageLoaderTest extends TestCase
         $package = $loader->load(array('require' => array('foo/bar' => 'self.version'), "non-feature-branches" => array("latest-.*")));
 
         $this->assertEquals("dev-latest-production", $package->getPrettyVersion());
+    }
+
+    /**
+     * @dataProvider provideExtraBranchVersion
+     */
+    public function testLoadExtraBranchVersion($branchVersion)
+    {
+        $package = $this->loadPackage(array(
+            'extra' => array(
+                'branch-version' => $branchVersion,
+            ),
+        ));
+
+        $this->assertEquals('1.2.x-dev', $package->getPrettyVersion());
+    }
+
+    public function provideExtraBranchVersion()
+    {
+        return array(
+            array('1.2'),
+            array('1.2.x'),
+            array('1.2-dev'),
+            array('1.2.x-dev'),
+        );
     }
 }

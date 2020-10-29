@@ -25,7 +25,6 @@ use Composer\Util\Http\Response;
  */
 class GitHubDriver extends VcsDriver
 {
-    protected $cache;
     protected $owner;
     protected $repository;
     protected $tags;
@@ -33,7 +32,6 @@ class GitHubDriver extends VcsDriver
     protected $rootIdentifier;
     protected $repoData;
     protected $hasIssues;
-    protected $infoCache = array();
     protected $isPrivate = false;
     private $isArchived = false;
     private $fundingInfo;

@@ -253,6 +253,11 @@ class Config
             case 'secure-http':
             case 'use-github-api':
             case 'lock':
+                // special case for secure-http
+                if ($key === 'secure-http' && $this->get('disable-tls') === true) {
+                    return false;
+                }
+
                 return $this->config[$key] !== 'false' && (bool) $this->config[$key];
 
             // ints without env var support
@@ -465,7 +470,8 @@ class Config
         if (in_array($scheme, array('http', 'git', 'ftp', 'svn'))) {
             if ($this->get('secure-http')) {
                 throw new TransportException("Your configuration does not allow connections to $url. See https://getcomposer.org/doc/06-config.md#secure-http for details.");
-            } elseif ($io) {
+            }
+            if ($io) {
                 $host = parse_url($url, PHP_URL_HOST);
                 if (!isset($this->warnedHosts[$host])) {
                     $io->writeError("<warning>Warning: Accessing $host over $scheme which is an insecure protocol.</warning>");

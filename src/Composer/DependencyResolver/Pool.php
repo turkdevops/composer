@@ -31,13 +31,13 @@ class Pool implements \Countable
     protected $packageByName = array();
     protected $versionParser;
     protected $providerCache = array();
-    protected $unacceptableFixedPackages;
+    protected $unacceptableFixedOrLockedPackages;
 
-    public function __construct(array $packages = array(), array $unacceptableFixedPackages = array())
+    public function __construct(array $packages = array(), array $unacceptableFixedOrLockedPackages = array())
     {
         $this->versionParser = new VersionParser;
         $this->setPackages($packages);
-        $this->unacceptableFixedPackages = $unacceptableFixedPackages;
+        $this->unacceptableFixedOrLockedPackages = $unacceptableFixedOrLockedPackages;
     }
 
     private function setPackages(array $packages)
@@ -147,11 +147,7 @@ class Pool implements \Countable
         $candidateVersion = $candidate->getVersion();
 
         if ($candidateName === $name) {
-            if ($constraint === null || CompilingMatcher::match($constraint, Constraint::OP_EQ, $candidateVersion)) {
-                return true;
-            }
-
-            return false;
+            return $constraint === null || CompilingMatcher::match($constraint, Constraint::OP_EQ, $candidateVersion);
         }
 
         $provides = $candidate->getProvides();
@@ -185,9 +181,9 @@ class Pool implements \Countable
         return false;
     }
 
-    public function isUnacceptableFixedPackage(PackageInterface $package)
+    public function isUnacceptableFixedOrLockedPackage(PackageInterface $package)
     {
-        return \in_array($package, $this->unacceptableFixedPackages, true);
+        return \in_array($package, $this->unacceptableFixedOrLockedPackages, true);
     }
 
     public function __toString()

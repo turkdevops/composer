@@ -25,12 +25,10 @@ use Composer\Config;
  */
 class GitDriver extends VcsDriver
 {
-    protected $cache;
     protected $tags;
     protected $branches;
     protected $rootIdentifier;
     protected $repoDir;
-    protected $infoCache = array();
 
     /**
      * {@inheritDoc}

@@ -219,7 +219,7 @@ There are a few use cases for this. The most common one is maintaining your
 own fork of a third party library. If you are using a certain library for your
 project, and you decide to change something in the library, you will want your
 project to use the patched version. If the library is on GitHub (this is the
-case most of the time), you can simply fork it there and push your changes to
+case most of the time), you can fork it there and push your changes to
 your fork. After that you update the project's `composer.json`. All you have
 to do is add your fork as a repository and update the version constraint to
 point to your custom branch. In `composer.json`, you should prefix your custom
@@ -316,23 +316,10 @@ Please note:
 
 #### BitBucket Driver Configuration
 
-The BitBucket driver uses OAuth to access your private repositories via the BitBucket REST APIs, and you will need to create an OAuth consumer to use the driver, please refer to [Atlassian's Documentation](https://confluence.atlassian.com/bitbucket/oauth-on-bitbucket-cloud-238027431.html). You will need to fill the callback url with something to satisfy BitBucket, but the address does not need to go anywhere and is not used by Composer.
+> **Note that the repository endpoint for BitBucket needs to be https rather than git.**
 
-After creating an OAuth consumer in the BitBucket control panel, you need to setup your auth.json file with
-the credentials like this (more info [here](https://getcomposer.org/doc/06-config.md#bitbucket-oauth)):
-```json
-{
-    "bitbucket-oauth": {
-        "bitbucket.org": {
-            "consumer-key": "myKey",
-            "consumer-secret": "mySecret"
-        }
-    }
-}
-```
-**Note that the repository endpoint needs to be https rather than git.**
-
-Alternatively if you prefer not to have your OAuth credentials on your filesystem you may export the ```bitbucket-oauth``` block above to the [COMPOSER_AUTH](https://getcomposer.org/doc/03-cli.md#composer-auth) environment variable instead.
+After setting up your bitbucket repository, you will also need to
+[set up authentication](articles/authentication-for-private-packages.md#bitbucket-oauth).
 
 #### Subversion Options
 
@@ -507,17 +494,17 @@ package repository definitions. It will fetch all the packages that are
 `require`d and dump a `packages.json` that is your `composer` repository.
 
 Check [the satis GitHub repository](https://github.com/composer/satis) and
-the [Satis article](articles/handling-private-packages-with-satis.md) for more
+the [handling private packages article](articles/handling-private-packages.md) for more
 information.
 
 ### Artifact
 
 There are some cases, when there is no ability to have one of the previously
-mentioned repository types online, even the VCS one. Typical example could be
-cross-organisation library exchange through built artifacts. Of course, most
-of the times they are private. To simplify maintenance, one can simply use a
-repository of type `artifact` with a folder containing ZIP or TAR archives of those
-private packages:
+mentioned repository types online, even the VCS one. A typical example could be
+cross-organisation library exchange through build artifacts. Of course, most
+of the time these are private. To use these archives as-is, one can use a
+repository of type `artifact` with a folder containing ZIP or TAR archives of
+those private packages:
 
 ```json
 {
@@ -589,6 +576,17 @@ the branch or tag that is currently checked out. Otherwise, the version should
 be explicitly defined in the package's `composer.json` file. If the version
 cannot be resolved by these means, it is assumed to be `dev-master`.
 
+When the version cannot be inferred from the local VCS repository, you should use
+the special `branch-version` entry under `extra` instead of `version`:
+
+```json
+{
+    "extra": {
+        "branch-version": "4.2-dev"
+    }
+}
+```
+
 The local package will be symlinked if possible, in which case the output in
 the console will read `Symlinking from ../../packages/my-package`. If symlinking
 is _not_ possible the package will be copied. In that case, the console will
@@ -623,7 +621,7 @@ variables are parsed in both Windows and Linux/Mac notations. For example
 `/home/<username>/git/mypackage`, equivalent to `$HOME/git/mypackage` or
 `%USERPROFILE%/git/mypackage`.
 
-> **Note:** Repository paths can also contain wildcards like ``*`` and ``?``.
+> **Note:** Repository paths can also contain wildcards like `*` and `?`.
 > For details, see the [PHP glob function](https://php.net/glob).
 
 ## Disabling Packagist.org

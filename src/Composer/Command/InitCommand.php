@@ -124,7 +124,7 @@ EOT
 
         if ($input->isInteractive()) {
             $io->writeError(array('', $json, ''));
-            if (!$io->askConfirmation('Do you confirm generation [<comment>yes</comment>]? ', true)) {
+            if (!$io->askConfirmation('Do you confirm generation [<comment>yes</comment>]? ')) {
                 $io->writeError('<error>Command aborted</error>');
 
                 return 1;
@@ -143,14 +143,14 @@ EOT
             if (!$this->hasVendorIgnore($ignoreFile)) {
                 $question = 'Would you like the <info>vendor</info> directory added to your <info>.gitignore</info> [<comment>yes</comment>]? ';
 
-                if ($io->askConfirmation($question, true)) {
+                if ($io->askConfirmation($question)) {
                     $this->addVendorIgnore($ignoreFile);
                 }
             }
         }
 
         $question = 'Would you like to install dependencies now [<comment>yes</comment>]? ';
-        if ($input->isInteractive() && $this->hasDependencies($options) && $io->askConfirmation($question, true)) {
+        if ($input->isInteractive() && $this->hasDependencies($options) && $io->askConfirmation($question)) {
             $this->installDependencies($output);
         }
 
@@ -277,7 +277,7 @@ EOT
                 $author_email = $git['user.email'];
             }
 
-            if (isset($author_name) && isset($author_email)) {
+            if (isset($author_name, $author_email)) {
                 $author = sprintf('%s <%s>', $author_name, $author_email);
             }
         }
@@ -358,7 +358,7 @@ EOT
         $question = 'Would you like to define your dependencies (require) interactively [<comment>yes</comment>]? ';
         $require = $input->getOption('require');
         $requirements = array();
-        if ($require || $io->askConfirmation($question, true)) {
+        if ($require || $io->askConfirmation($question)) {
             $requirements = $this->determineRequirements($input, $output, $require, $platformRepo, $preferredStability);
         }
         $input->setOption('require', $requirements);
@@ -366,7 +366,7 @@ EOT
         $question = 'Would you like to define your dev dependencies (require-dev) interactively [<comment>yes</comment>]? ';
         $requireDev = $input->getOption('require-dev');
         $devRequirements = array();
-        if ($requireDev || $io->askConfirmation($question, true)) {
+        if ($requireDev || $io->askConfirmation($question)) {
             $devRequirements = $this->determineRequirements($input, $output, $requireDev, $platformRepo, $preferredStability);
         }
         $input->setOption('require-dev', $devRequirements);
@@ -434,7 +434,7 @@ EOT
                     ));
                 } else {
                     // check that the specified version/constraint exists before we proceed
-                    list($name, $version) = $this->findBestVersionAndNameForPackage($input, $requirement['name'], $platformRepo, $preferredStability, $checkProvidedVersions ? $requirement['version'] : null, 'dev', $fixed);
+                    list($name) = $this->findBestVersionAndNameForPackage($input, $requirement['name'], $platformRepo, $preferredStability, $checkProvidedVersions ? $requirement['version'] : null, 'dev', $fixed);
 
                     // replace package name from packagist.org
                     $requirement['name'] = $name;
@@ -457,10 +457,7 @@ EOT
                 $existingPackages[] = $package->getName();
             }
         }
-        foreach ($requires as $requiredPackage) {
-            $existingPackages[] = substr($requiredPackage, 0, strpos($requiredPackage, ' '));
-        }
-        unset($composer, $installedRepo, $requiredPackage);
+        unset($composer, $installedRepo);
 
         $io = $this->getIO();
         while (null !== $package = $io->ask('Search for a package: ')) {
@@ -558,7 +555,7 @@ EOT
                     );
 
                     if (false === $constraint) {
-                        list($name, $constraint) = $this->findBestVersionAndNameForPackage($input, $package, $platformRepo, $preferredStability);
+                        list(, $constraint) = $this->findBestVersionAndNameForPackage($input, $package, $platformRepo, $preferredStability);
 
                         $io->writeError(sprintf(
                             'Using version <info>%s</info> for <info>%s</info>',
@@ -744,9 +741,9 @@ EOT
             // Check whether the PHP version was the problem
             if (true !== $ignorePlatformReqs && $versionSelector->findBestCandidate($name, $requiredVersion, $preferredStability, true)) {
                 throw new \InvalidArgumentException(sprintf(
-                    'Package %s at version %s has a PHP requirement incompatible with your PHP version, PHP extensions and Composer version',
+                    'Package %s%s has a PHP requirement incompatible with your PHP version, PHP extensions and Composer version',
                     $name,
-                    $requiredVersion
+                    $requiredVersion ? ' at version '.$requiredVersion : ''
                 ));
             }
             // Check whether the required version was the problem

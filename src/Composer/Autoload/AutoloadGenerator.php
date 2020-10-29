@@ -58,6 +58,11 @@ class AutoloadGenerator
     private $apcu = false;
 
     /**
+     * @var string|null
+     */
+    private $apcuPrefix;
+
+    /**
      * @var bool
      */
     private $runScripts = false;
@@ -92,11 +97,13 @@ class AutoloadGenerator
     /**
      * Whether or not generated autoloader considers APCu caching.
      *
-     * @param bool $apcu
+     * @param bool        $apcu
+     * @param string|null $apcuPrefix
      */
-    public function setApcu($apcu)
+    public function setApcu($apcu, $apcuPrefix = null)
     {
         $this->apcu = (bool) $apcu;
+        $this->apcuPrefix = $apcuPrefix !== null ? (string) $apcuPrefix : $apcuPrefix;
     }
 
     /**
@@ -609,7 +616,7 @@ EOF;
         $extensionProviders = array();
 
         foreach ($packageMap as $item) {
-            list($package, $installPath) = $item;
+            $package = $item[0];
             foreach (array_merge($package->getReplaces(), $package->getProvides()) as $link) {
                 if (preg_match('{^ext-(.+)$}iD', $link->getTarget(), $match)) {
                     $extensionProviders[$match[1]][] = $link->getConstraint() ?: new MatchAllConstraint();
@@ -618,7 +625,7 @@ EOF;
         }
 
         foreach ($packageMap as $item) {
-            list($package, $installPath) = $item;
+            $package = $item[0];
             foreach ($package->getRequires() as $link) {
                 if (in_array($link->getTarget(), $ignorePlatformReqs, true)) {
                     continue;
@@ -858,9 +865,9 @@ CLASSMAPAUTHORITATIVE;
         }
 
         if ($this->apcu) {
-            $apcuPrefix = substr(base64_encode(md5(uniqid('', true), true)), 0, -3);
+            $apcuPrefix = var_export(($this->apcuPrefix !== null ? $this->apcuPrefix : substr(base64_encode(md5(uniqid('', true), true)), 0, -3)), true);
             $file .= <<<APCU
-        \$loader->setApcuPrefix('$apcuPrefix');
+        \$loader->setApcuPrefix($apcuPrefix);
 
 APCU;
         }
@@ -1094,7 +1101,8 @@ INITIALIZER;
                     if ($type === 'files') {
                         $autoloads[$this->getFileIdentifier($package, $path)] = $relativePath;
                         continue;
-                    } elseif ($type === 'classmap') {
+                    }
+                    if ($type === 'classmap') {
                         $autoloads[] = $relativePath;
                         continue;
                     }

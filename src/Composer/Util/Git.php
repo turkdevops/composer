@@ -79,6 +79,7 @@ class Git
                     return;
                 }
                 $messages[] = '- ' . $protoUrl . "\n" . preg_replace('#^#m', '  ', $this->process->getErrorOutput());
+
                 if ($initialClone && isset($origCwd)) {
                     $this->filesystem->removeDirectory($origCwd);
                 }
@@ -286,12 +287,12 @@ class Git
 
     public function fetchRefOrSyncMirror($url, $dir, $ref)
     {
-        if ($this->checkRefIsInMirror($url, $dir, $ref)) {
+        if ($this->checkRefIsInMirror($dir, $ref)) {
             return true;
         }
 
         if ($this->syncMirror($url, $dir)) {
-            return $this->checkRefIsInMirror($url, $dir, $ref);
+            return $this->checkRefIsInMirror($dir, $ref);
         }
 
         return false;
@@ -307,7 +308,7 @@ class Git
         return '';
     }
 
-    private function checkRefIsInMirror($url, $dir, $ref)
+    private function checkRefIsInMirror($dir, $ref)
     {
         if (is_dir($dir) && 0 === $this->process->execute('git rev-parse --git-dir', $output, $dir) && trim($output) === '.') {
             $escapedRef = ProcessExecutor::escape($ref.'^{commit}');

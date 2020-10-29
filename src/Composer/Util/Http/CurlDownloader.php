@@ -41,6 +41,9 @@ class CurlDownloader
     private $authHelper;
     private $selectTimeout = 5.0;
     private $maxRedirects = 20;
+    /** @var ProxyManager */
+    private $proxyManager;
+    private $supportsSecureProxy;
     protected $multiErrors = array(
         CURLM_BAD_HANDLE      => array('CURLM_BAD_HANDLE', 'The passed-in handle is not a valid CURLM handle.'),
         CURLM_BAD_EASY_HANDLE => array('CURLM_BAD_EASY_HANDLE', "An easy handle was not good/valid. It could mean that it isn't an easy handle at all, or possibly that the handle already is in used by this or another multi handle."),
@@ -53,6 +56,7 @@ class CurlDownloader
             'method' => CURLOPT_CUSTOMREQUEST,
             'content' => CURLOPT_POSTFIELDS,
             'header' => CURLOPT_HTTPHEADER,
+            'timeout' => CURLOPT_TIMEOUT,
         ),
         'ssl' => array(
             'cafile' => CURLOPT_CAINFO,
@@ -92,6 +96,11 @@ class CurlDownloader
         }
 
         $this->authHelper = new AuthHelper($io, $config);
+        $this->proxyManager = ProxyManager::getInstance();
+
+        $version = curl_version();
+        $features = $version['features'];
+        $this->supportsSecureProxy = defined('CURL_VERSION_HTTPS_PROXY') && ($features & CURL_VERSION_HTTPS_PROXY);
     }
 
     /**
@@ -150,7 +159,7 @@ class CurlDownloader
         curl_setopt($curlHandle, CURLOPT_FOLLOWLOCATION, false);
         //curl_setopt($curlHandle, CURLOPT_DNS_USE_GLOBAL_CACHE, false);
         curl_setopt($curlHandle, CURLOPT_CONNECTTIMEOUT, 10);
-        curl_setopt($curlHandle, CURLOPT_TIMEOUT, 60);
+        curl_setopt($curlHandle, CURLOPT_TIMEOUT, 300);
         curl_setopt($curlHandle, CURLOPT_WRITEHEADER, $headerHandle);
         curl_setopt($curlHandle, CURLOPT_FILE, $bodyHandle);
         curl_setopt($curlHandle, CURLOPT_ENCODING, "gzip");
@@ -176,7 +185,8 @@ class CurlDownloader
         }
 
         $options['http']['header'] = $this->authHelper->addAuthenticationHeader($options['http']['header'], $origin, $url);
-        $options = StreamContextFactory::initOptions($url, $options);
+        // Merge in headers - we don't get any proxy values
+        $options = StreamContextFactory::initOptions($url, $options, true);
 
         foreach (self::$options as $type => $curlOptions) {
             foreach ($curlOptions as $name => $curlOption) {
@@ -187,6 +197,25 @@ class CurlDownloader
                         curl_setopt($curlHandle, $curlOption, $options[$type][$name]);
                     }
                 }
+            }
+        }
+
+        // Always set CURLOPT_PROXY to enable/disable proxy handling
+        // Any proxy authorization is included in the proxy url
+        $proxy = $this->proxyManager->getProxyForRequest($url);
+        curl_setopt($curlHandle, CURLOPT_PROXY, $proxy->getUrl());
+
+        // Curl needs certificate locations for secure proxies.
+        // CURLOPT_PROXY_SSL_VERIFY_PEER/HOST are enabled by default
+        if ($proxy->isSecure()) {
+            if (!$this->supportsSecureProxy) {
+                throw new TransportException('Connecting to a secure proxy using curl is not supported on PHP versions below 7.3.0.');
+            }
+            if (!empty($options['ssl']['cafile'])) {
+                curl_setopt($curlHandle, CURLOPT_PROXY_CAINFO, $options['ssl']['cafile']);
+            }
+            if (!empty($options['ssl']['capath'])) {
+                curl_setopt($curlHandle, CURLOPT_PROXY_CAPATH, $options['ssl']['capath']);
             }
         }
 
@@ -206,22 +235,21 @@ class CurlDownloader
             'reject' => $reject,
         );
 
-        $usingProxy = !empty($options['http']['proxy']) ? ' using proxy ' . $options['http']['proxy'] : '';
-        $ifModified = false !== strpos(strtolower(implode(',', $options['http']['header'])), 'if-modified-since:') ? ' if modified' : '';
+        $usingProxy = $proxy->getFormattedUrl(' using proxy (%s)');
+        $ifModified = false !== stripos(implode(',', $options['http']['header']), 'if-modified-since:') ? ' if modified' : '';
         if ($attributes['redirects'] === 0) {
             $this->io->writeError('Downloading ' . Url::sanitize($url) . $usingProxy . $ifModified, true, IOInterface::DEBUG);
         }
 
         $this->checkCurlResult(curl_multi_add_handle($this->multiHandle, $curlHandle));
         // TODO progress
-        //$params['notification'](STREAM_NOTIFY_RESOLVE, STREAM_NOTIFY_SEVERITY_INFO, '', 0, 0, 0, false);
 
         return (int) $curlHandle;
     }
 
     public function abortRequest($id)
     {
-        if (isset($this->jobs[$id]) && isset($this->jobs[$id]['handle'])) {
+        if (isset($this->jobs[$id], $this->jobs[$id]['handle'])) {
             $job = $this->jobs[$id];
             curl_multi_remove_handle($this->multiHandle, $job['handle']);
             curl_close($job['handle']);
@@ -271,7 +299,6 @@ class CurlDownloader
             $response = null;
             try {
                 // TODO progress
-                //$this->onProgress($curlHandle, $job['callback'], $progress, $job['progress']);
                 if (CURLE_OK !== $errno || $error) {
                     throw new TransportException($error);
                 }
@@ -363,7 +390,6 @@ class CurlDownloader
             $progress = array_diff_key(curl_getinfo($curlHandle), self::$timeInfo);
 
             if ($this->jobs[$i]['progress'] !== $progress) {
-                $previousProgress = $this->jobs[$i]['progress'];
                 $this->jobs[$i]['progress'] = $progress;
 
                 if (isset($this->jobs[$i]['options']['max_file_size'])) {
@@ -378,8 +404,7 @@ class CurlDownloader
                     }
                 }
 
-                // TODO
-                //$this->onProgress($curlHandle, $this->jobs[$i]['callback'], $progress, $previousProgress);
+                // TODO progress
             }
         }
     }
@@ -481,20 +506,6 @@ class CurlDownloader
         }
 
         return new TransportException('The "'.$job['url'].'" file could not be downloaded ('.$errorMessage.')', $response->getStatusCode());
-    }
-
-    private function onProgress($curlHandle, callable $notify, array $progress, array $previousProgress)
-    {
-        // TODO add support for progress
-        if (300 <= $progress['http_code'] && $progress['http_code'] < 400) {
-            return;
-        }
-        if ($previousProgress['download_content_length'] < $progress['download_content_length']) {
-            $notify(STREAM_NOTIFY_FILE_SIZE_IS, STREAM_NOTIFY_SEVERITY_INFO, '', 0, 0, (int) $progress['download_content_length'], false);
-        }
-        if ($previousProgress['size_download'] < $progress['size_download']) {
-            $notify(STREAM_NOTIFY_PROGRESS, STREAM_NOTIFY_SEVERITY_INFO, '', 0, (int) $progress['size_download'], (int) $progress['download_content_length'], false);
-        }
     }
 
     private function checkCurlResult($code)

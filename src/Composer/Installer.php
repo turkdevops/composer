@@ -126,6 +126,7 @@ class Installer
     protected $optimizeAutoloader = false;
     protected $classMapAuthoritative = false;
     protected $apcuAutoloader = false;
+    protected $apcuAutoloaderPrefix;
     protected $devMode = false;
     protected $dryRun = false;
     protected $verbose = false;
@@ -145,7 +146,7 @@ class Installer
      * @var array|null
      */
     protected $updateMirrors = false;
-    protected $updateAllowList = null;
+    protected $updateAllowList;
     protected $updateAllowTransitiveDependencies = Request::UPDATE_ONLY_LISTED;
 
     /**
@@ -307,7 +308,7 @@ class Installer
 
             $this->autoloadGenerator->setDevMode($this->devMode);
             $this->autoloadGenerator->setClassMapAuthoritative($this->classMapAuthoritative);
-            $this->autoloadGenerator->setApcu($this->apcuAutoloader);
+            $this->autoloadGenerator->setApcu($this->apcuAutoloader, $this->apcuAutoloaderPrefix);
             $this->autoloadGenerator->setRunScripts($this->runScripts);
             $this->autoloadGenerator->setIgnorePlatformRequirements($this->ignorePlatformReqs);
             $this->autoloadGenerator->dump($this->config, $localRepo, $this->package, $this->installationManager, 'composer', $this->optimizeAutoloader);
@@ -568,7 +569,7 @@ class Installer
         $repositorySet = $this->createRepositorySet(true, $platformRepo, $aliases);
         $repositorySet->addRepository($resultRepo);
 
-        $request = $this->createRequest($this->fixedRootPackage, $platformRepo, null);
+        $request = $this->createRequest($this->fixedRootPackage, $platformRepo);
 
         $links = $this->package->getRequires();
         foreach ($links as $link) {
@@ -632,7 +633,7 @@ class Installer
             }
 
             foreach ($lockedRepository->getPackages() as $package) {
-                $request->fixPackage($package);
+                $request->fixLockedPackage($package);
             }
 
             foreach ($this->locker->getPlatformRequirements($this->devMode) as $link) {
@@ -650,7 +651,6 @@ class Installer
                 // installing the locked packages on this platform resulted in lock modifying operations, there wasn't a conflict, but the lock file as-is seems to not work on this system
                 if (0 !== count($lockTransaction->getOperations())) {
                     $this->io->writeError('<error>Your lock file cannot be installed on this system without changes. Please run composer update.</error>', true, IOInterface::QUIET);
-                    // TODO actually display operations to explain what happened?
                     return 1;
                 }
             } catch (SolverProblemsException $e) {
@@ -820,9 +820,9 @@ class Installer
     {
         $request = new Request($lockedRepository);
 
-        $request->fixPackage($rootPackage, false);
+        $request->fixPackage($rootPackage);
         if ($rootPackage instanceof RootAliasPackage) {
-            $request->fixPackage($rootPackage->getAliasOf(), false);
+            $request->fixPackage($rootPackage->getAliasOf());
         }
 
         $fixedPackages = $platformRepo->getPackages();
@@ -840,7 +840,7 @@ class Installer
                 || !isset($provided[$package->getName()])
                 || !$provided[$package->getName()]->getConstraint()->matches(new Constraint('=', $package->getVersion()))
             ) {
-                $request->fixPackage($package, false);
+                $request->fixPackage($package);
             }
         }
 
@@ -990,7 +990,7 @@ class Installer
      * @param  bool      $optimizeAutoloader
      * @return Installer
      */
-    public function setOptimizeAutoloader($optimizeAutoloader = false)
+    public function setOptimizeAutoloader($optimizeAutoloader)
     {
         $this->optimizeAutoloader = (bool) $optimizeAutoloader;
         if (!$this->optimizeAutoloader) {
@@ -1009,7 +1009,7 @@ class Installer
      * @param  bool      $classMapAuthoritative
      * @return Installer
      */
-    public function setClassMapAuthoritative($classMapAuthoritative = false)
+    public function setClassMapAuthoritative($classMapAuthoritative)
     {
         $this->classMapAuthoritative = (bool) $classMapAuthoritative;
         if ($this->classMapAuthoritative) {
@@ -1023,12 +1023,14 @@ class Installer
     /**
      * Whether or not generated autoloader considers APCu caching.
      *
-     * @param  bool      $apcuAutoloader
+     * @param  bool        $apcuAutoloader
+     * @param  string|null $apcuAutoloaderPrefix
      * @return Installer
      */
-    public function setApcuAutoloader($apcuAutoloader = false)
+    public function setApcuAutoloader($apcuAutoloader, $apcuAutoloaderPrefix = null)
     {
-        $this->apcuAutoloader = (bool) $apcuAutoloader;
+        $this->apcuAutoloader = $apcuAutoloader;
+        $this->apcuAutoloaderPrefix = $apcuAutoloaderPrefix;
 
         return $this;
     }
@@ -1039,7 +1041,7 @@ class Installer
      * @param  bool      $update
      * @return Installer
      */
-    public function setUpdate($update = true)
+    public function setUpdate($update)
     {
         $this->update = (bool) $update;
 
@@ -1052,7 +1054,7 @@ class Installer
      * @param  bool      $install
      * @return Installer
      */
-    public function setInstall($install = true)
+    public function setInstall($install)
     {
         $this->install = (bool) $install;
 
@@ -1148,7 +1150,7 @@ class Installer
      * @param  bool|array $ignorePlatformReqs
      * @return Installer
      */
-    public function setIgnorePlatformRequirements($ignorePlatformReqs = false)
+    public function setIgnorePlatformRequirements($ignorePlatformReqs)
     {
         if (is_array($ignorePlatformReqs)) {
             $this->ignorePlatformReqs = array_filter($ignorePlatformReqs, function ($req) {

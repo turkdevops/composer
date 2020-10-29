@@ -129,7 +129,7 @@ class ArrayLoader implements LoaderInterface
         }
 
         if (isset($config['source'])) {
-            if (!isset($config['source']['type']) || !isset($config['source']['url']) || !isset($config['source']['reference'])) {
+            if (!isset($config['source']['type'], $config['source']['url'], $config['source']['reference'])) {
                 throw new \UnexpectedValueException(sprintf(
                     "Package %s's source key should be specified as {\"type\": ..., \"url\": ..., \"reference\": ...},\n%s given.",
                     $config['name'],
@@ -145,8 +145,7 @@ class ArrayLoader implements LoaderInterface
         }
 
         if (isset($config['dist'])) {
-            if (!isset($config['dist']['type'])
-             || !isset($config['dist']['url'])) {
+            if (!isset($config['dist']['type'], $config['dist']['url'])) {
                 throw new \UnexpectedValueException(sprintf(
                     "Package %s's dist key should be specified as ".
                     "{\"type\": ..., \"url\": ..., \"reference\": ..., \"shasum\": ...},\n%s given.",
@@ -296,10 +295,11 @@ class ArrayLoader implements LoaderInterface
     }
 
     /**
-     * @param  string $source        source package name
-     * @param  string $sourceVersion source package version (pretty version ideally)
-     * @param  string $description   link description (e.g. requires, replaces, ..)
-     * @param  array  $links         array of package name => constraint mappings
+     * @param         string       $source        source package name
+     * @param         string       $sourceVersion source package version (pretty version ideally)
+     * @param         string       $description   link description (e.g. requires, replaces, ..)
+     * @phpstan-param Link::TYPE_* $description
+     * @param         array        $links         array of package name => constraint mappings
      * @return Link[]
      */
     public function parseLinks($source, $sourceVersion, $description, $links)

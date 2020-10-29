@@ -20,6 +20,7 @@ use Composer\Package\RootPackageInterface;
 use Composer\Repository\RepositoryFactory;
 use Composer\Package\Version\VersionGuesser;
 use Composer\Package\Version\VersionParser;
+use Composer\Package\RootPackage;
 use Composer\Repository\RepositoryManager;
 use Composer\Util\ProcessExecutor;
 
@@ -47,11 +48,6 @@ class RootPackageLoader extends ArrayLoader
      */
     private $versionGuesser;
 
-    /**
-     * @var IOInterface
-     */
-    private $io;
-
     public function __construct(RepositoryManager $manager, Config $config, VersionParser $parser = null, VersionGuesser $versionGuesser = null, IOInterface $io = null)
     {
         parent::__construct($parser);
@@ -59,7 +55,6 @@ class RootPackageLoader extends ArrayLoader
         $this->manager = $manager;
         $this->config = $config;
         $this->versionGuesser = $versionGuesser ?: new VersionGuesser($config, new ProcessExecutor($io), $this->versionParser);
-        $this->io = $io;
     }
 
     /**
@@ -79,8 +74,10 @@ class RootPackageLoader extends ArrayLoader
         if (!isset($config['version'])) {
             $commit = null;
 
-            // override with env var if available
-            if (getenv('COMPOSER_ROOT_VERSION')) {
+            if (isset($config['extra']['branch-version'])) {
+                $config['version'] = preg_replace('{(\.x)?(-dev)?$}', '', $config['extra']['branch-version']).'.x-dev';
+            } elseif (getenv('COMPOSER_ROOT_VERSION')) {
+                // override with env var if available
                 $config['version'] = getenv('COMPOSER_ROOT_VERSION');
             } else {
                 $versionData = $this->versionGuesser->guessVersion($config, $cwd ?: getcwd());
@@ -116,7 +113,7 @@ class RootPackageLoader extends ArrayLoader
         }
 
         if ($autoVersioned) {
-            $realPackage->replaceVersion($realPackage->getVersion(), 'No version set (parsed as 1.0.0)');
+            $realPackage->replaceVersion($realPackage->getVersion(), RootPackage::DEFAULT_PRETTY_VERSION);
         }
 
         if (isset($config['minimum-stability'])) {

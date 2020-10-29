@@ -351,7 +351,7 @@
                 },
                 "classmap": {
                     "type": "array",
-                    "description": "This is an array of directories that contain classes to be included in the class-map generation process."
+                    "description": "This is an array of paths that contain classes to be included in the class-map generation process."
                 },
                 "files": {
                     "type": "array",
@@ -377,13 +377,13 @@
             "type": ["object", "array"],
             "description": "A set of additional repositories where packages can be found.",
             "additionalProperties": {
-                "oneOf": [
+                "anyOf": [
                     { "$ref": "#/definitions/repository" },
                     { "type": "boolean", "enum": [false] }
                 ]
             },
             "items": {
-                "oneOf": [
+                "anyOf": [
                     { "$ref": "#/definitions/repository" },
                     {
                         "type": "object",
@@ -638,7 +638,7 @@
                 },
                 "classmap": {
                     "type": "array",
-                    "description": "This is an array of directories that contain classes to be included in the class-map generation process."
+                    "description": "This is an array of paths that contain classes to be included in the class-map generation process."
                 },
                 "files": {
                     "type": "array",
@@ -652,7 +652,7 @@
         },
         "repository": {
             "type": "object",
-            "oneOf": [
+            "anyOf": [
                 { "$ref": "#/definitions/composer-repository" },
                 { "$ref": "#/definitions/vcs-repository" },
                 { "$ref": "#/definitions/path-repository" },

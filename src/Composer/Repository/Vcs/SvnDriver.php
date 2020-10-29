@@ -28,15 +28,10 @@ use Composer\Downloader\TransportException;
  */
 class SvnDriver extends VcsDriver
 {
-    /**
-     * @var Cache
-     */
-    protected $cache;
     protected $baseUrl;
     protected $tags;
     protected $branches;
     protected $rootIdentifier;
-    protected $infoCache = array();
 
     protected $trunkPath = 'trunk';
     protected $branchesPath = 'branches';
@@ -226,7 +221,7 @@ class SvnDriver extends VcsDriver
                     foreach ($this->process->splitLines($output) as $line) {
                         $line = trim($line);
                         if ($line && preg_match('{^\s*(\S+).*?(\S+)\s*$}', $line, $match)) {
-                            if (isset($match[1]) && isset($match[2]) && $match[2] !== './') {
+                            if (isset($match[1], $match[2]) && $match[2] !== './') {
                                 $this->tags[rtrim($match[2], '/')] = $this->buildIdentifier(
                                     '/' . $this->tagsPath . '/' . $match[2],
                                     $match[1]
@@ -260,7 +255,7 @@ class SvnDriver extends VcsDriver
                 foreach ($this->process->splitLines($output) as $line) {
                     $line = trim($line);
                     if ($line && preg_match('{^\s*(\S+).*?(\S+)\s*$}', $line, $match)) {
-                        if (isset($match[1]) && isset($match[2]) && $match[2] === './') {
+                        if (isset($match[1], $match[2]) && $match[2] === './') {
                             $this->branches['trunk'] = $this->buildIdentifier(
                                 '/' . $this->trunkPath,
                                 $match[1]
@@ -279,7 +274,7 @@ class SvnDriver extends VcsDriver
                     foreach ($this->process->splitLines(trim($output)) as $line) {
                         $line = trim($line);
                         if ($line && preg_match('{^\s*(\S+).*?(\S+)\s*$}', $line, $match)) {
-                            if (isset($match[1]) && isset($match[2]) && $match[2] !== './') {
+                            if (isset($match[1], $match[2]) && $match[2] !== './') {
                                 $this->branches[rtrim($match[2], '/')] = $this->buildIdentifier(
                                     '/' . $this->branchesPath . '/' . $match[2],
                                     $match[1]

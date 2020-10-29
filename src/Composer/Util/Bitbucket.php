@@ -93,7 +93,7 @@ class Bitbucket
      * @param  string $originUrl
      * @return bool
      */
-    private function requestAccessToken($originUrl)
+    private function requestAccessToken()
     {
         try {
             $response = $this->httpDownloader->get(self::OAUTH2_ACCESS_TOKEN_URL, array(
@@ -113,7 +113,8 @@ class Bitbucket
                 $this->io->writeError('2. You are using an OAuth consumer, but didn\'t configure a (dummy) callback url');
 
                 return false;
-            } elseif (in_array($e->getCode(), array(403, 401))) {
+            }
+            if (in_array($e->getCode(), array(403, 401))) {
                 $this->io->writeError('<error>Invalid OAuth consumer provided.</error>');
                 $this->io->writeError('You can also add it manually later by using "composer config --global --auth bitbucket-oauth.bitbucket.org <consumer-key> <consumer-secret>"');
 
@@ -166,7 +167,7 @@ class Bitbucket
 
         $this->io->setAuthentication($originUrl, $consumerKey, $consumerSecret);
 
-        if (!$this->requestAccessToken($originUrl)) {
+        if (!$this->requestAccessToken()) {
             return false;
         }
 
@@ -196,7 +197,7 @@ class Bitbucket
         }
 
         $this->io->setAuthentication($originUrl, $consumerKey, $consumerSecret);
-        if (!$this->requestAccessToken($originUrl)) {
+        if (!$this->requestAccessToken()) {
             return '';
         }
 
@@ -235,8 +236,7 @@ class Bitbucket
         $authConfig = $this->config->get('bitbucket-oauth');
 
         if (
-            !isset($authConfig[$originUrl]['access-token'])
-            || !isset($authConfig[$originUrl]['access-token-expiration'])
+            !isset($authConfig[$originUrl]['access-token'], $authConfig[$originUrl]['access-token-expiration'])
             || time() > $authConfig[$originUrl]['access-token-expiration']
         ) {
             return false;
