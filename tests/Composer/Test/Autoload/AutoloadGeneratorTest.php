@@ -20,6 +20,7 @@ use Composer\Semver\Constraint\MatchAllConstraint;
 use Composer\Util\Filesystem;
 use Composer\Package\AliasPackage;
 use Composer\Package\Package;
+use Composer\Package\RootPackage;
 use Composer\Test\TestCase;
 use Composer\Script\ScriptEvents;
 use Composer\Repository\InstalledRepositoryInterface;
@@ -135,6 +136,9 @@ class AutoloadGeneratorTest extends TestCase
                 return $that->vendorDir.'/'.$package->getName() . ($targetDir ? '/'.$targetDir : '');
             }));
         $this->repository = $this->getMockBuilder('Composer\Repository\InstalledRepositoryInterface')->getMock();
+        $this->repository->expects($this->any())
+            ->method('getDevPackageNames')
+            ->willReturn(array());
 
         $this->eventDispatcher = $this->getMockBuilder('Composer\EventDispatcher\EventDispatcher')
             ->disableOriginalConstructor()
@@ -156,9 +160,9 @@ class AutoloadGeneratorTest extends TestCase
         }
     }
 
-    public function testMainPackageAutoloading()
+    public function testRootPackageAutoloading()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setAutoload(array(
             'psr-0' => array(
                 'Main' => 'src/',
@@ -201,9 +205,9 @@ class AutoloadGeneratorTest extends TestCase
         $this->assertAutoloadFiles('classmap', $this->vendorDir.'/composer', 'classmap');
     }
 
-    public function testMainPackageDevAutoloading()
+    public function testRootPackageDevAutoloading()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setAutoload(array(
             'psr-0' => array(
                 'Main' => 'src/',
@@ -239,9 +243,9 @@ class AutoloadGeneratorTest extends TestCase
         $this->assertAutoloadFiles('files2', $this->vendorDir.'/composer', 'files');
     }
 
-    public function testMainPackageDevAutoloadingDisabledByDefault()
+    public function testRootPackageDevAutoloadingDisabledByDefault()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setAutoload(array(
             'psr-0' => array(
                 'Main' => 'src/',
@@ -276,7 +280,7 @@ class AutoloadGeneratorTest extends TestCase
     {
         $this->vendorDir = $this->workingDir;
 
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setAutoload(array(
             'psr-0' => array('Main' => 'src/', 'Lala' => 'src/'),
             'psr-4' => array(
@@ -303,9 +307,9 @@ class AutoloadGeneratorTest extends TestCase
         $this->assertAutoloadFiles('classmap3', $this->vendorDir.'/composer', 'classmap');
     }
 
-    public function testMainPackageAutoloadingAlternativeVendorDir()
+    public function testRootPackageAutoloadingAlternativeVendorDir()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setAutoload(array(
             'psr-0' => array('Main' => 'src/', 'Lala' => 'src/'),
             'psr-4' => array(
@@ -332,9 +336,9 @@ class AutoloadGeneratorTest extends TestCase
         $this->assertAutoloadFiles('classmap2', $this->vendorDir.'/composer', 'classmap');
     }
 
-    public function testMainPackageAutoloadingWithTargetDir()
+    public function testRootPackageAutoloadingWithTargetDir()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setAutoload(array(
             'psr-0' => array('Main\\Foo' => '', 'Main\\Bar' => ''),
             'classmap' => array('Main/Foo/src', 'lib'),
@@ -365,7 +369,7 @@ class AutoloadGeneratorTest extends TestCase
 
     public function testVendorsAutoloading()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setRequires(array(
             new Link('a', 'a/a', new MatchAllConstraint()),
             new Link('a', 'b/b', new MatchAllConstraint()),
@@ -394,7 +398,7 @@ class AutoloadGeneratorTest extends TestCase
 
     public function testNonDevAutoloadExclusionWithRecursion()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setRequires(array(
             new Link('a', 'a/a', new MatchAllConstraint()),
         ));
@@ -427,7 +431,7 @@ class AutoloadGeneratorTest extends TestCase
 
     public function testNonDevAutoloadShouldIncludeReplacedPackages()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setRequires(array(new Link('a', 'a/a', new MatchAllConstraint())));
 
         $packages = array();
@@ -461,7 +465,7 @@ class AutoloadGeneratorTest extends TestCase
 
     public function testNonDevAutoloadExclusionWithRecursionReplace()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setRequires(array(
             new Link('a', 'a/a', new MatchAllConstraint()),
         ));
@@ -494,9 +498,9 @@ class AutoloadGeneratorTest extends TestCase
 
     public function testNonDevAutoloadReplacesNestedRequirements()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setRequires(array(
-            new Link('a', 'a/a', new MatchAllConstraint())
+            new Link('a', 'a/a', new MatchAllConstraint()),
         ));
 
         $packages = array();
@@ -507,18 +511,18 @@ class AutoloadGeneratorTest extends TestCase
         $packages[] = $e = new Package('e/e', '1.0', '1.0');
         $a->setAutoload(array('classmap' => array('src/A.php')));
         $a->setRequires(array(
-            new Link('a/a', 'b/b', new MatchAllConstraint())
+            new Link('a/a', 'b/b', new MatchAllConstraint()),
         ));
         $b->setAutoload(array('classmap' => array('src/B.php')));
         $b->setRequires(array(
-            new Link('b/b', 'e/e', new MatchAllConstraint())
+            new Link('b/b', 'e/e', new MatchAllConstraint()),
         ));
         $c->setAutoload(array('classmap' => array('src/C.php')));
         $c->setReplaces(array(
-            new Link('c/c', 'b/b', new MatchAllConstraint())
+            new Link('c/c', 'b/b', new MatchAllConstraint()),
         ));
         $c->setRequires(array(
-            new Link('c/c', 'd/d', new MatchAllConstraint())
+            new Link('c/c', 'd/d', new MatchAllConstraint()),
         ));
         $d->setAutoload(array('classmap' => array('src/D.php')));
         $e->setAutoload(array('classmap' => array('src/E.php')));
@@ -546,7 +550,7 @@ class AutoloadGeneratorTest extends TestCase
 
     public function testPharAutoload()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setRequires(array(
             new Link('a', 'a/a', new MatchAllConstraint()),
         ));
@@ -587,7 +591,7 @@ class AutoloadGeneratorTest extends TestCase
 
     public function testPSRToClassMapIgnoresNonExistingDir()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
 
         $package->setAutoload(array(
             'psr-0' => array('Prefix' => 'foo/bar/non/existing/'),
@@ -610,7 +614,7 @@ class AutoloadGeneratorTest extends TestCase
 
     public function testPSRToClassMapIgnoresNonPSRClasses()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
 
         $package->setAutoload(array(
             'psr-0' => array('psr0_' => 'psr0/'),
@@ -651,7 +655,7 @@ EOF;
 
     public function testVendorsClassMapAutoloading()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setRequires(array(
             new Link('a', 'a/a', new MatchAllConstraint()),
             new Link('a', 'b/b', new MatchAllConstraint()),
@@ -691,7 +695,7 @@ EOF;
 
     public function testVendorsClassMapAutoloadingWithTargetDir()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setRequires(array(
             new Link('a', 'a/a', new MatchAllConstraint()),
             new Link('a', 'b/b', new MatchAllConstraint()),
@@ -731,7 +735,7 @@ EOF;
 
     public function testClassMapAutoloadingEmptyDirAndExactFile()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setRequires(array(
             new Link('a', 'a/a', new MatchAllConstraint()),
             new Link('a', 'b/b', new MatchAllConstraint()),
@@ -776,7 +780,7 @@ EOF;
 
     public function testClassMapAutoloadingAuthoritativeAndApcu()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setRequires(array(
             new Link('a', 'a/a', new MatchAllConstraint()),
             new Link('a', 'b/b', new MatchAllConstraint()),
@@ -825,7 +829,7 @@ EOF;
 
     public function testClassMapAutoloadingAuthoritativeAndApcuPrefix()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setRequires(array(
             new Link('a', 'a/a', new MatchAllConstraint()),
             new Link('a', 'b/b', new MatchAllConstraint()),
@@ -874,7 +878,7 @@ EOF;
 
     public function testFilesAutoloadGeneration()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setAutoload(array('files' => array('root.php')));
         $package->setRequires(array(
             new Link('a', 'a/a', new MatchAllConstraint()),
@@ -921,11 +925,11 @@ EOF;
 
     public function testFilesAutoloadGenerationRemoveExtraEntitiesFromAutoloadFiles()
     {
-        $autoloadPackage = new Package('a', '1.0', '1.0');
+        $autoloadPackage = new RootPackage('root/a', '1.0', '1.0');
         $autoloadPackage->setAutoload(array('files' => array('root.php')));
         $autoloadPackage->setIncludePaths(array('/lib', '/src'));
 
-        $notAutoloadPackage = new Package('a', '1.0', '1.0');
+        $notAutoloadPackage = new RootPackage('root/a', '1.0', '1.0');
 
         $requires = array(
             new Link('a', 'a/a', new MatchAllConstraint()),
@@ -952,15 +956,15 @@ EOF;
         $notAutoloadPackages[] = $b = new Package('b/b', '1.0', '1.0');
         $notAutoloadPackages[] = $c = new Package('c/c', '1.0', '1.0');
 
-        $this->repository->expects($this->at(0))
+        $this->repository->expects($this->at(1))
             ->method('getCanonicalPackages')
             ->will($this->returnValue($autoloadPackages));
 
-        $this->repository->expects($this->at(1))
+        $this->repository->expects($this->at(3))
             ->method('getCanonicalPackages')
             ->will($this->returnValue($notAutoloadPackages));
 
-        $this->repository->expects($this->at(2))
+        $this->repository->expects($this->at(5))
             ->method('getCanonicalPackages')
             ->will($this->returnValue($notAutoloadPackages));
 
@@ -996,7 +1000,7 @@ EOF;
 
     public function testFilesAutoloadOrderByDependencies()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setAutoload(array('files' => array('root2.php')));
         $package->setRequires(array(
             new Link('a', 'z/foo', new MatchAllConstraint()),
@@ -1066,12 +1070,12 @@ EOF;
      */
     public function testOverrideVendorsAutoloading()
     {
-        $mainPackage = new Package('z', '1.0', '1.0');
-        $mainPackage->setAutoload(array(
+        $rootPackage = new RootPackage('root/z', '1.0', '1.0');
+        $rootPackage->setAutoload(array(
             'psr-0' => array('A\\B' => $this->workingDir.'/lib'),
             'classmap' => array($this->workingDir.'/src'),
         ));
-        $mainPackage->setRequires(array(
+        $rootPackage->setRequires(array(
             new Link('z', 'a/a', new MatchAllConstraint()),
             new Link('z', 'b/b', new MatchAllConstraint()),
         ));
@@ -1153,7 +1157,7 @@ return array(
 
 EOF;
 
-        $this->generator->dump($this->config, $this->repository, $mainPackage, $this->im, 'composer', true, '_9');
+        $this->generator->dump($this->config, $this->repository, $rootPackage, $this->im, 'composer', true, '_9');
         $this->assertStringEqualsFile($this->vendorDir.'/composer/autoload_namespaces.php', $expectedNamespace);
         $this->assertStringEqualsFile($this->vendorDir.'/composer/autoload_psr4.php', $expectedPsr4);
         $this->assertStringEqualsFile($this->vendorDir.'/composer/autoload_classmap.php', $expectedClassmap);
@@ -1161,7 +1165,7 @@ EOF;
 
     public function testIncludePathFileGeneration()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $packages = array();
 
         $a = new Package("a/a", "1.0", "1.0");
@@ -1198,7 +1202,7 @@ EOF;
 
     public function testIncludePathsArePrependedInAutoloadFile()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $packages = array();
 
         $a = new Package("a/a", "1.0", "1.0");
@@ -1227,9 +1231,9 @@ EOF;
         set_include_path($oldIncludePath);
     }
 
-    public function testIncludePathsInMainPackage()
+    public function testIncludePathsInRootPackage()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setIncludePaths(array('/lib', '/src'));
 
         $packages = array($a = new Package("a/a", "1.0", "1.0"));
@@ -1258,7 +1262,7 @@ EOF;
 
     public function testIncludePathFileWithoutPathsIsSkipped()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $packages = array();
 
         $a = new Package("a/a", "1.0", "1.0");
@@ -1287,7 +1291,7 @@ EOF;
             ->method('dispatchScript')
             ->with(ScriptEvents::POST_AUTOLOAD_DUMP, false);
 
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setAutoload(array('psr-0' => array('foo/bar/non/existing/')));
 
         $this->repository->expects($this->once())
@@ -1300,7 +1304,7 @@ EOF;
 
     public function testUseGlobalIncludePath()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setAutoload(array(
             'psr-0' => array('Main\\Foo' => '', 'Main\\Bar' => ''),
         ));
@@ -1327,7 +1331,7 @@ EOF;
         $this->fs->ensureDirectoryExists($workingDir);
         chdir($workingDir);
 
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setAutoload(array(
             'psr-0' => array('Foo' => 'src'),
             'psr-4' => array('Acme\Foo\\' => 'src-psr4'),
@@ -1439,7 +1443,7 @@ EOF;
         mkdir($workingDir, 0777, true);
         chdir($workingDir);
 
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setAutoload(array(
             'psr-0' => array('Foo' => '../path/../src'),
             'psr-4' => array('Acme\Foo\\' => '../path/../src-psr4'),
@@ -1513,7 +1517,7 @@ EOF;
 
     public function testEmptyPaths()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setAutoload(array(
             'psr-0' => array('Foo' => ''),
             'psr-4' => array('Acme\Foo\\' => ''),
@@ -1581,7 +1585,7 @@ EOF;
 
     public function testVendorSubstringPath()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setAutoload(array(
             'psr-0' => array('Foo' => 'composer-test-autoload-src/src'),
             'psr-4' => array('Acme\Foo\\' => 'composer-test-autoload-src/src-psr4'),
@@ -1628,7 +1632,7 @@ EOF;
 
     public function testExcludeFromClassmap()
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setAutoload(array(
             'psr-0' => array(
                 'Main' => 'src/',
@@ -1700,7 +1704,7 @@ EOF;
      */
     public function testGeneratesPlatformCheck(array $requires, $expectedFixture, array $provides = array(), array $replaces = array(), $ignorePlatformReqs = false)
     {
-        $package = new Package('a', '1.0', '1.0');
+        $package = new RootPackage('root/a', '1.0', '1.0');
         $package->setRequires($requires);
 
         if ($provides) {
@@ -1736,63 +1740,63 @@ EOF;
                 array(
                     new Link('a', 'php', $versionParser->parseConstraints('^7.2')),
                     new Link('a', 'ext-xml', $versionParser->parseConstraints('*')),
-                    new Link('a', 'ext-json', $versionParser->parseConstraints('*'))
+                    new Link('a', 'ext-json', $versionParser->parseConstraints('*')),
                 ),
-                'typical'
+                'typical',
             ),
             'No PHP lower bound' => array(
                 array(
                     new Link('a', 'php', $versionParser->parseConstraints('< 8')),
                 ),
-                null
+                null,
             ),
             'No PHP upper bound' => array(
                 array(
                     new Link('a', 'php', $versionParser->parseConstraints('>= 7.2')),
                 ),
-                'no_php_upper_bound'
+                'no_php_upper_bound',
             ),
             'Specific PHP release version' => array(
                 array(
                     new Link('a', 'php', $versionParser->parseConstraints('^7.2.8')),
                 ),
-                'specific_php_release'
+                'specific_php_release',
             ),
             'No PHP required' => array(
                 array(
                     new Link('a', 'ext-xml', $versionParser->parseConstraints('*')),
-                    new Link('a', 'ext-json', $versionParser->parseConstraints('*'))
+                    new Link('a', 'ext-json', $versionParser->parseConstraints('*')),
                 ),
-                'no_php_required'
+                'no_php_required',
             ),
             'Ignoring all platform requirements skips check completely' => array(
                 array(
                     new Link('a', 'php', $versionParser->parseConstraints('^7.2')),
                     new Link('a', 'ext-xml', $versionParser->parseConstraints('*')),
-                    new Link('a', 'ext-json', $versionParser->parseConstraints('*'))
+                    new Link('a', 'ext-json', $versionParser->parseConstraints('*')),
                 ),
                 null,
                 array(),
                 array(),
-                true
+                true,
             ),
             'Ignored platform requirements are not checked for' => array(
                 array(
                     new Link('a', 'php', $versionParser->parseConstraints('^7.2.8')),
                     new Link('a', 'ext-xml', $versionParser->parseConstraints('*')),
                     new Link('a', 'ext-json', $versionParser->parseConstraints('*')),
-                    new Link('a', 'ext-pdo', $versionParser->parseConstraints('*'))
+                    new Link('a', 'ext-pdo', $versionParser->parseConstraints('*')),
                 ),
                 'no_php_required',
                 array(),
                 array(),
-                array('php', 'ext-pdo')
+                array('php', 'ext-pdo'),
             ),
             'No extensions required' => array(
                 array(
                     new Link('a', 'php', $versionParser->parseConstraints('^7.2')),
                 ),
-                'no_extensions_required'
+                'no_extensions_required',
             ),
             'Replaced/provided extensions are not checked for + checking case insensitivity' => array(
                 array(

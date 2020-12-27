@@ -1814,7 +1814,8 @@ class JsonManipulatorTest extends TestCase
 ', $manipulator->getContents());
     }
 
-    public function testAddConfigWithPackage() {
+    public function testAddConfigWithPackage()
+    {
         $manipulator = new JsonManipulator('{
     "repositories": [
         {
@@ -2433,6 +2434,48 @@ class JsonManipulatorTest extends TestCase
         $this->assertTrue($manipulator->removeMainKey('require'));
         $this->assertTrue($manipulator->removeMainKey('require-dev'));
         $this->assertEquals('{
+}
+', $manipulator->getContents());
+    }
+
+    public function testRemoveMainKeyIfEmpty()
+    {
+        $manipulator = new JsonManipulator('{
+    "repositories": [
+    ],
+    "require": {
+        "package/a": "*",
+        "package/b": "*",
+        "package/c": "*"
+    },
+    "foo": "bar",
+    "require-dev": {
+    }
+}');
+
+        $this->assertTrue($manipulator->removeMainKeyIfEmpty('repositories'));
+        $this->assertEquals('{
+    "require": {
+        "package/a": "*",
+        "package/b": "*",
+        "package/c": "*"
+    },
+    "foo": "bar",
+    "require-dev": {
+    }
+}
+', $manipulator->getContents());
+
+        $this->assertTrue($manipulator->removeMainKeyIfEmpty('foo'));
+        $this->assertTrue($manipulator->removeMainKeyIfEmpty('require'));
+        $this->assertTrue($manipulator->removeMainKeyIfEmpty('require-dev'));
+        $this->assertEquals('{
+    "require": {
+        "package/a": "*",
+        "package/b": "*",
+        "package/c": "*"
+    },
+    "foo": "bar"
 }
 ', $manipulator->getContents());
     }
