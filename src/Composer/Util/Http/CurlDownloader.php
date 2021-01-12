@@ -303,7 +303,9 @@ class CurlDownloader
                     if (!$error && function_exists('curl_strerror')) {
                         $error = curl_strerror($errno);
                     }
-                    throw new TransportException('curl error '.$errno.' while downloading '.Url::sanitize($progress['url']).': '.$error);
+                    $exception = new TransportException('curl error '.$errno.' while downloading '.Url::sanitize($progress['url']).': '.$error);
+                    $exception->setResponseInfo($progress);
+                    throw $exception;
                 }
                 $statusCode = $progress['http_code'];
                 rewind($job['headerHandle']);
@@ -321,12 +323,12 @@ class CurlDownloader
                         rewind($job['bodyHandle']);
                         $contents = stream_get_contents($job['bodyHandle']);
                     }
-                    $response = new Response(array('url' => $progress['url']), $statusCode, $headers, $contents);
+                    $response = new CurlResponse(array('url' => $progress['url']), $statusCode, $headers, $contents, $progress);
                     $this->io->writeError('['.$statusCode.'] '.Url::sanitize($progress['url']), true, IOInterface::DEBUG);
                 } else {
                     rewind($job['bodyHandle']);
                     $contents = stream_get_contents($job['bodyHandle']);
-                    $response = new Response(array('url' => $progress['url']), $statusCode, $headers, $contents);
+                    $response = new CurlResponse(array('url' => $progress['url']), $statusCode, $headers, $contents, $progress);
                     $this->io->writeError('['.$statusCode.'] '.Url::sanitize($progress['url']), true, IOInterface::DEBUG);
                 }
                 fclose($job['bodyHandle']);
@@ -335,7 +337,7 @@ class CurlDownloader
                     HttpDownloader::outputWarnings($this->io, $job['origin'], json_decode($response->getBody(), true));
                 }
 
-                $result = $this->isAuthenticatedRetryNeeded($job, $response);
+                $result = $this->isAuthenticatedRetryNeeded($job, $response, $progress);
                 if ($result['retry']) {
                     $this->restartJob($job, $job['url'], array('storeAuth' => $result['storeAuth']));
                     continue;
@@ -343,7 +345,7 @@ class CurlDownloader
 
                 // handle 3xx redirects, 304 Not Modified is excluded
                 if ($statusCode >= 300 && $statusCode <= 399 && $statusCode !== 304 && $job['attributes']['redirects'] < $this->maxRedirects) {
-                    $location = $this->handleRedirect($job, $response);
+                    $location = $this->handleRedirect($job, $response, $progress);
                     if ($location) {
                         $this->restartJob($job, $location, array('redirects' => $job['attributes']['redirects'] + 1));
                         continue;
@@ -352,7 +354,7 @@ class CurlDownloader
 
                 // fail 4xx and 5xx responses and capture the response
                 if ($statusCode >= 400 && $statusCode <= 599) {
-                    throw $this->failResponse($job, $response, $response->getStatusMessage());
+                    throw $this->failResponse($job, $response, $response->getStatusMessage(), $progress);
                 }
 
                 if ($job['attributes']['storeAuth']) {
@@ -415,7 +417,7 @@ class CurlDownloader
         }
     }
 
-    private function handleRedirect(array $job, Response $response)
+    private function handleRedirect(array $job, Response $response, array $responseInfo)
     {
         if ($locationHeader = $response->getHeader('location')) {
             if (parse_url($locationHeader, PHP_URL_SCHEME)) {
@@ -443,10 +445,12 @@ class CurlDownloader
             return $targetUrl;
         }
 
-        throw new TransportException('The "'.$job['url'].'" file could not be downloaded, got redirect without Location ('.$response->getStatusMessage().')');
+        $exception = new TransportException('The "'.$job['url'].'" file could not be downloaded, got redirect without Location ('.$response->getStatusMessage().')');
+        $exception->setResponseInfo($responseInfo);
+        throw $exception;
     }
 
-    private function isAuthenticatedRetryNeeded(array $job, Response $response)
+    private function isAuthenticatedRetryNeeded(array $job, Response $response, array $responseInfo)
     {
         if (in_array($response->getStatusCode(), array(401, 403)) && $job['attributes']['retryAuthFailure']) {
             $result = $this->authHelper->promptAuthIfNeeded($job['url'], $job['origin'], $response->getStatusCode(), $response->getStatusMessage(), $response->getHeaders());
@@ -487,7 +491,7 @@ class CurlDownloader
                 }
             }
 
-            throw $this->failResponse($job, $response, $needsAuthRetry);
+            throw $this->failResponse($job, $response, $needsAuthRetry, $responseInfo);
         }
 
         return array('retry' => false, 'storeAuth' => false);
@@ -505,13 +509,15 @@ class CurlDownloader
         $this->initDownload($job['resolve'], $job['reject'], $origin, $url, $job['options'], $job['filename'], $attributes);
     }
 
-    private function failResponse(array $job, Response $response, $errorMessage)
+    private function failResponse(array $job, Response $response, $errorMessage, array $responseInfo)
     {
         if ($job['filename']) {
             @unlink($job['filename'].'~');
         }
 
-        return new TransportException('The "'.$job['url'].'" file could not be downloaded ('.$errorMessage.')', $response->getStatusCode());
+        $exception = new TransportException('The "'.$job['url'].'" file could not be downloaded ('.$errorMessage.')', $response->getStatusCode());
+        $exception->setResponseInfo($responseInfo);
+        return $exception;
     }
 
     private function checkCurlResult($code)
