@@ -24,8 +24,9 @@ use Composer\Installer\PackageEvent;
 use Composer\Installer\BinaryInstaller;
 use Composer\Util\ProcessExecutor;
 use Composer\Script\Event as ScriptEvent;
-use Composer\ClassLoader;
+use Composer\Autoload\ClassLoader;
 use Symfony\Component\Process\PhpExecutableFinder;
+use Symfony\Component\Process\ExecutableFinder;
 
 /**
  * The Event Dispatcher.
@@ -258,6 +259,15 @@ class EventDispatcher
                             return str_replace('/', '\\', $path[0]);
                         }, $pathAndArgs);
                     }
+                    // match somename (not in quote, and not a qualified path) and if it is not a valid path from CWD then try to find it
+                    // in $PATH. This allows support for `@php foo` where foo is a binary name found in PATH but not an actual relative path
+                    preg_match('{^[^\'"\s/\\\\]+}', $pathAndArgs, $match);
+                    if (!file_exists($match[0])) {
+                        $finder = new ExecutableFinder;
+                        if ($pathToExec = $finder->find($match[0])) {
+                            $pathAndArgs = $pathToExec . substr($pathAndArgs, strlen($match[0]));
+                        }
+                    }
                     $exec = $this->getPhpExecCommand() . ' ' . $pathAndArgs;
                 } else {
                     $finder = new PhpExecutableFinder();
@@ -453,7 +463,7 @@ class EventDispatcher
         $packageMap = $generator->buildPackageMap($this->composer->getInstallationManager(), $package, $packages);
         $map = $generator->parseAutoloads($packageMap, $package);
         $this->loader = $generator->createLoader($map, $this->composer->getConfig()->get('vendor-dir'));
-        $this->loader->register(true);
+        $this->loader->register(false);
 
         return $scripts[$event->getName()];
     }

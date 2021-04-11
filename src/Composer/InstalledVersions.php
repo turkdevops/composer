@@ -18,6 +18,8 @@ use Composer\Semver\VersionParser;
 /**
  * This class is copied in every Composer installed project and available to all
  *
+ * See also https://getcomposer.org/doc/07-runtime.md#installed-versions
+ *
  * To require it's presence, you can require `composer-runtime-api ^2.0`
  */
 class InstalledVersions
@@ -39,7 +41,6 @@ class InstalledVersions
             $packages[] = array_keys($installed['versions']);
         }
 
-
         if (1 === \count($packages)) {
             return $packages[0];
         }
@@ -53,13 +54,14 @@ class InstalledVersions
      * This also returns true if the package name is provided or replaced by another package
      *
      * @param  string $packageName
+     * @param  bool   $includeDevRequirements
      * @return bool
      */
-    public static function isInstalled($packageName)
+    public static function isInstalled($packageName, $includeDevRequirements = true)
     {
         foreach (self::getInstalled() as $installed) {
             if (isset($installed['versions'][$packageName])) {
-                return true;
+                return $includeDevRequirements || empty($installed['versions'][$packageName]['dev-requirement']);
             }
         }
 
@@ -73,10 +75,9 @@ class InstalledVersions
      *
      *   Composer\InstalledVersions::satisfies(new VersionParser, 'foo/bar', '^2.3')
      *
-     * @param VersionParser $parser      Install composer/semver to have access to this class and functionality
-     * @param string        $packageName
-     * @param string|null   $constraint  A version constraint to check for, if you pass one you have to make sure composer/semver is required by your package
-     *
+     * @param  VersionParser $parser      Install composer/semver to have access to this class and functionality
+     * @param  string        $packageName
+     * @param  string|null   $constraint  A version constraint to check for, if you pass one you have to make sure composer/semver is required by your package
      * @return bool
      */
     public static function satisfies(VersionParser $parser, $packageName, $constraint)
@@ -188,7 +189,7 @@ class InstalledVersions
 
     /**
      * @return array
-     * @psalm-return array{name: string, version: string, reference: string, pretty_version: string, aliases: string[]}
+     * @psalm-return array{name: string, version: string, reference: string, pretty_version: string, aliases: string[], dev: bool}
      */
     public static function getRootPackage()
     {
@@ -201,7 +202,7 @@ class InstalledVersions
      * Returns the raw installed.php data for custom implementations
      *
      * @return array[]
-     * @psalm-return array{root: array{name: string, version: string, reference: string, pretty_version: string, aliases: string[]}, versions: list<string, array{pretty_version: ?string, version: ?string, aliases: ?string[], reference: ?string, replaced: ?string[], provided: ?string[]}>}
+     * @psalm-return array{root: array{name: string, version: string, reference: string, pretty_version: string, aliases: string[], dev: bool}, versions: array<string, array{dev-requirement: bool, pretty_version?: string, version?: string, aliases?: string[], reference?: string, replaced?: string[], provided?: string[]}>}
      */
     public static function getRawData()
     {
@@ -224,7 +225,7 @@ class InstalledVersions
      * @param  array[] $data A vendor/composer/installed.php data set
      * @return void
      *
-     * @psalm-param array{root: array{name: string, version: string, reference: string, pretty_version: string, aliases: string[]}, versions: list<string, array{pretty_version: ?string, version: ?string, aliases: ?string[], reference: ?string, replaced: ?string[], provided: ?string[]}>} $data
+     * @psalm-param array{root: array{name: string, version: string, reference: string, pretty_version: string, aliases: string[], dev: bool}, versions: array<string, array{dev-requirement: bool, pretty_version?: string, version?: string, aliases?: string[], reference?: string, replaced?: string[], provided?: string[]}>} $data
      */
     public static function reload($data)
     {
@@ -234,6 +235,7 @@ class InstalledVersions
 
     /**
      * @return array[]
+     * @psalm-return list<array{root: array{name: string, version: string, reference: string, pretty_version: string, aliases: string[], dev: bool}, versions: array<string, array{dev-requirement: bool, pretty_version?: string, version?: string, aliases?: string[], reference?: string, replaced?: string[], provided?: string[]}>}>
      */
     private static function getInstalled()
     {
