@@ -84,6 +84,7 @@ class FileDownloader implements DownloaderInterface, ChangeReportInterface
         $this->filesystem = $filesystem ?: new Filesystem($this->process);
 
         if ($this->cache && $this->cache->gcIsNecessary()) {
+            $this->io->writeError('Running cache garbage collection', true, IOInterface::VERY_VERBOSE);
             $this->cache->gc($config->get('cache-files-ttl'), $config->get('cache-files-maxsize'));
         }
     }
@@ -305,7 +306,7 @@ class FileDownloader implements DownloaderInterface, ChangeReportInterface
 
         foreach ($dirsToCleanUp as $dir) {
             if (is_dir($dir) && $this->filesystem->isDirEmpty($dir) && realpath($dir) !== getcwd()) {
-                $this->filesystem->removeDirectory($dir);
+                $this->filesystem->removeDirectoryPhp($dir);
             }
         }
 

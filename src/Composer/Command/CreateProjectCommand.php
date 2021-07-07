@@ -37,6 +37,7 @@ use Symfony\Component\Finder\Finder;
 use Composer\Json\JsonFile;
 use Composer\Config\JsonConfigSource;
 use Composer\Util\Filesystem;
+use Composer\Util\Platform;
 use Composer\Util\ProcessExecutor;
 use Composer\Package\Version\VersionParser;
 
@@ -182,6 +183,7 @@ EOT
         }
 
         $composer = Factory::create($io, null, $disablePlugins);
+        $composer->getEventDispatcher()->setRunScripts(!$noScripts);
 
         // add the repository to the composer.json and use it for the install run later
         if ($repositories !== null && $addRepository) {
@@ -207,10 +209,8 @@ EOT
         $process = new ProcessExecutor($io);
         $fs = new Filesystem($process);
 
-        if ($noScripts === false) {
-            // dispatch event
-            $composer->getEventDispatcher()->dispatchScript(ScriptEvents::POST_ROOT_PACKAGE_INSTALL, $installDevPackages);
-        }
+        // dispatch event
+        $composer->getEventDispatcher()->dispatchScript(ScriptEvents::POST_ROOT_PACKAGE_INSTALL, $installDevPackages);
 
         // use the new config including the newly installed project
         $config = $composer->getConfig();
@@ -224,7 +224,6 @@ EOT
             $installer->setPreferSource($preferSource)
                 ->setPreferDist($preferDist)
                 ->setDevMode($installDevPackages)
-                ->setRunScripts(!$noScripts)
                 ->setIgnorePlatformRequirements($ignorePlatformReqs)
                 ->setSuggestedPackagesReporter($this->suggestedPackagesReporter)
                 ->setOptimizeAutoloader($config->get('optimize-autoloader'))
@@ -289,10 +288,8 @@ EOT
             }
         }
 
-        if ($noScripts === false) {
-            // dispatch event
-            $composer->getEventDispatcher()->dispatchScript(ScriptEvents::POST_CREATE_PROJECT_CMD, $installDevPackages);
-        }
+        // dispatch event
+        $composer->getEventDispatcher()->dispatchScript(ScriptEvents::POST_CREATE_PROJECT_CMD, $installDevPackages);
 
         chdir($oldCwd);
         $vendorComposerDir = $config->get('vendor-dir').'/composer';
@@ -453,8 +450,7 @@ EOT
         $io->writeError('<info>Created project in ' . $directory . '</info>');
         chdir($directory);
 
-        $_SERVER['COMPOSER_ROOT_VERSION'] = $package->getPrettyVersion();
-        putenv('COMPOSER_ROOT_VERSION='.$_SERVER['COMPOSER_ROOT_VERSION']);
+        Platform::putEnv('COMPOSER_ROOT_VERSION', $package->getPrettyVersion());
 
         return $installedFromVcs;
     }

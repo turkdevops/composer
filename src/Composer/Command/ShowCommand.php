@@ -36,13 +36,11 @@ use Composer\Repository\RootPackageRepository;
 use Composer\Semver\Constraint\ConstraintInterface;
 use Composer\Semver\Semver;
 use Composer\Spdx\SpdxLicenses;
-use Composer\Util\Platform;
 use Symfony\Component\Console\Formatter\OutputFormatterStyle;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Terminal;
 
 /**
  * @author Robert Schönthal <seroscho@googlemail.com>
@@ -331,26 +329,6 @@ EOT
             $packageListFilter = $this->getRootRequires();
         }
 
-        if (class_exists('Symfony\Component\Console\Terminal')) {
-            $terminal = new Terminal();
-            $width = $terminal->getWidth();
-        } else {
-            // For versions of Symfony console before 3.2
-            // TODO remove in composer 2.2
-            // @phpstan-ignore-next-line
-            list($width) = $this->getApplication()->getTerminalDimensions();
-        }
-        if (null === $width) {
-            // In case the width is not detected, we're probably running the command
-            // outside of a real terminal, use space without a limit
-            $width = PHP_INT_MAX;
-        }
-        if (Platform::isWindows()) {
-            $width--;
-        } else {
-            $width = max(80, $width);
-        }
-
         if ($input->getOption('path') && null === $composer) {
             $io->writeError('No composer.json found in the current directory, disabling "path" option');
             $input->setOption('path', false);
@@ -495,6 +473,26 @@ EOT
         if ('json' === $format) {
             $io->write(JsonFile::encode($viewData));
         } else {
+            if ($input->getOption('latest') && array_filter($viewData)) {
+                if (!$io->isDecorated()) {
+                    $io->writeError('Legend:');
+                    $io->writeError('! patch or minor release available - update recommended');
+                    $io->writeError('~ major release available - update possible');
+                    if (!$input->getOption('outdated')) {
+                        $io->writeError('= up to date version');
+                    }
+                } else {
+                    $io->writeError('<info>Color legend:</info>');
+                    $io->writeError('- <highlight>patch or minor</highlight> release available - update recommended');
+                    $io->writeError('- <comment>major</comment> release available - update possible');
+                    if (!$input->getOption('outdated')) {
+                        $io->writeError('- <info>up to date</info> version');
+                    }
+                }
+            }
+
+            $width = $this->getTerminalWidth();
+
             foreach ($viewData as $type => $packages) {
                 $nameLength = $viewMetaData[$type]['nameLength'];
                 $versionLength = $viewMetaData[$type]['versionLength'];

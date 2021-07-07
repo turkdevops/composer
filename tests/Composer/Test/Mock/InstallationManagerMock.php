@@ -13,7 +13,6 @@
 namespace Composer\Test\Mock;
 
 use Composer\Installer\InstallationManager;
-use Composer\Repository\RepositoryInterface;
 use Composer\Repository\InstalledRepositoryInterface;
 use Composer\Package\PackageInterface;
 use Composer\IO\IOInterface;
@@ -118,5 +117,10 @@ class InstallationManagerMock extends InstallationManager
     public function notifyInstalls(IOInterface $io)
     {
         // noop
+    }
+
+    public function getInstalledPackagesByType()
+    {
+        return $this->installed;
     }
 }

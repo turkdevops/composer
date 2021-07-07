@@ -72,8 +72,8 @@ interface RepositoryInterface extends \Countable
      *
      * @param ConstraintInterface[]                          $packageNameMap        package names pointing to constraints
      * @param array<string, BasePackage::STABILITY_*>        $acceptableStabilities array of stability => BasePackage::STABILITY_* value
-     * @param array<string, BasePackage::STABILITY_*>        $stabilityFlags  an array of package name => BasePackage::STABILITY_* value
-     * @param array<string, array<string, PackageInterface>> $alreadyLoaded an array of package name => package version => package
+     * @param array<string, BasePackage::STABILITY_*>        $stabilityFlags        an array of package name => BasePackage::STABILITY_* value
+     * @param array<string, array<string, PackageInterface>> $alreadyLoaded         an array of package name => package version => package
      *
      * @return array{namesFound: string[], packages: PackageInterface[]}
      */
@@ -86,8 +86,8 @@ interface RepositoryInterface extends \Countable
      * @param int    $mode  a set of SEARCH_* constants to search on, implementations should do a best effort only
      * @param string $type  The type of package to search for. Defaults to all types of packages
      *
-     * @return array[] an array of array('name' => '...', 'description' => '...')
-     * @phpstan-return list<array{name: string, description: string}>
+     * @return array[] an array of array('name' => '...', 'description' => '...'|null)
+     * @phpstan-return list<array{name: string, description: ?string}>
      */
     public function search($query, $mode = 0, $type = null);
 

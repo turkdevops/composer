@@ -15,6 +15,7 @@ namespace Composer\Util;
 use Composer\Composer;
 use Composer\CaBundle\CaBundle;
 use Composer\Downloader\TransportException;
+use Composer\Repository\PlatformRepository;
 use Composer\Util\Http\ProxyManager;
 use Psr\Log\LoggerInterface;
 
@@ -112,13 +113,15 @@ final class StreamContextFactory
         }
 
         if (!isset($options['http']['header']) || false === stripos(implode('', $options['http']['header']), 'user-agent')) {
+            $platformPhpVersion = PlatformRepository::getPlatformPhpVersion();
             $options['http']['header'][] = sprintf(
-                'User-Agent: Composer/%s (%s; %s; %s; %s%s)',
+                'User-Agent: Composer/%s (%s; %s; %s; %s%s%s)',
                 Composer::getVersion(),
                 function_exists('php_uname') ? php_uname('s') : 'Unknown',
                 function_exists('php_uname') ? php_uname('r') : 'Unknown',
                 $phpVersion,
                 $httpVersion,
+                $platformPhpVersion ? '; Platform-PHP '.$platformPhpVersion : '',
                 getenv('CI') ? '; CI' : ''
             );
         }
@@ -211,11 +214,11 @@ final class StreamContextFactory
             }
         }
 
-        if (isset($defaults['ssl']['cafile']) && (!is_readable($defaults['ssl']['cafile']) || !CaBundle::validateCaFile($defaults['ssl']['cafile'], $logger))) {
+        if (isset($defaults['ssl']['cafile']) && (!Filesystem::isReadable($defaults['ssl']['cafile']) || !CaBundle::validateCaFile($defaults['ssl']['cafile'], $logger))) {
             throw new TransportException('The configured cafile was not valid or could not be read.');
         }
 
-        if (isset($defaults['ssl']['capath']) && (!is_dir($defaults['ssl']['capath']) || !is_readable($defaults['ssl']['capath']))) {
+        if (isset($defaults['ssl']['capath']) && (!is_dir($defaults['ssl']['capath']) || !Filesystem::isReadable($defaults['ssl']['capath']))) {
             throw new TransportException('The configured capath was not valid or could not be read.');
         }
 

@@ -13,6 +13,7 @@
 namespace Composer\Command;
 
 use Composer\DependencyResolver\Request;
+use Composer\Util\Filesystem;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputOption;
@@ -119,9 +120,7 @@ EOT
 
             return 1;
         }
-        // check for readability by reading the file as is_readable can not be trusted on network-mounts
-        // see https://github.com/composer/composer/issues/8231 and https://bugs.php.net/bug.php?id=68926
-        if (!is_readable($this->file) && false === Silencer::call('file_get_contents', $this->file)) {
+        if (!Filesystem::isReadable($this->file)) {
             $io->writeError('<error>'.$this->file.' is not readable.</error>');
 
             return 1;
@@ -312,6 +311,7 @@ EOT
         // Update packages
         $this->resetComposer();
         $composer = $this->getComposer(true, $input->getOption('no-plugins'));
+        $composer->getEventDispatcher()->setRunScripts(!$input->getOption('no-scripts'));
 
         if ($input->getOption('dry-run')) {
             $rootPackage = $composer->getPackage();
@@ -363,7 +363,6 @@ EOT
             ->setPreferSource($preferSource)
             ->setPreferDist($preferDist)
             ->setDevMode($updateDevMode)
-            ->setRunScripts(!$input->getOption('no-scripts'))
             ->setOptimizeAutoloader($optimize)
             ->setClassMapAuthoritative($authoritative)
             ->setApcuAutoloader($apcu, $apcuPrefix)

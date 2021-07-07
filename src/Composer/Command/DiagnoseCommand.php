@@ -24,10 +24,12 @@ use Composer\Util\IniHelper;
 use Composer\Util\ProcessExecutor;
 use Composer\Util\HttpDownloader;
 use Composer\Util\StreamContextFactory;
+use Composer\Util\Platform;
 use Composer\SelfUpdate\Keys;
 use Composer\SelfUpdate\Versions;
 use Composer\IO\NullIO;
 use Composer\Package\CompletePackageInterface;
+use Composer\XdebugHandler\XdebugHandler;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Process\ExecutableFinder;
@@ -175,9 +177,17 @@ EOT
 
         $finder = new ExecutableFinder;
         $hasSystemUnzip = (bool) $finder->find('unzip');
+        if (Platform::isWindows()) {
+            $hasSystem7zip = (bool) $finder->find('7z', null, array('C:\Program Files\7-Zip'));
+            $windows7z = ', ' . ($hasSystem7zip ? '<comment>7-Zip present</comment>' : '<comment>7-Zip not available</comment>');
+        } else {
+            $windows7z = '';
+        }
+
         $io->write(
             'zip: ' . (extension_loaded('zip') ? '<comment>extension present</comment>' : '<comment>extension not loaded</comment>')
             . ', ' . ($hasSystemUnzip ? '<comment>unzip present</comment>' : '<comment>unzip not available</comment>')
+            . $windows7z
         );
 
         return $this->exitCode;
@@ -403,7 +413,7 @@ EOT
     }
 
     /**
-     * @param bool|string|\Exception $result
+     * @param bool|string|string[]|\Exception $result
      */
     private function outputResult($result)
     {
@@ -535,7 +545,7 @@ EOT
 
         if (filter_var(ini_get('xdebug.profiler_enabled'), FILTER_VALIDATE_BOOLEAN)) {
             $warnings['xdebug_profile'] = true;
-        } elseif (extension_loaded('xdebug')) {
+        } elseif (XdebugHandler::isXdebugActive()) {
             $warnings['xdebug_loaded'] = true;
         }
 
